@@ -42,27 +42,12 @@ impl SudokuPossibilities {
 
     pub fn solved(&self) -> Option<SudokuSolution> {
         assert!(!self.is_broken(), "Cannot operate on a broken sudoku");
-
-        for i in 0..9 {
-            for j in 0..8 {
-                self.grid[i][j].determined()?;
-            }
-        }
-
-        Some(
-            self.grid
-                .map(|row| row.map(|cell| cell.determined().unwrap()))
-                .into(),
-        )
+        self.try_map(|cell| cell.determined())
     }
 
     pub fn is_broken(&self) -> bool {
-        for i in 0..9 {
-            for j in 0..9 {
-                if self.grid[i][j].is_broken() {
-                    return true;
-                }
-            }
+        if self.iter().any(|cell| cell.is_broken()) {
+            return true;
         }
 
         for i in 0..9 {

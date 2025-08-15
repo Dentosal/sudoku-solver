@@ -42,24 +42,33 @@ mod tests {
     use std::fs;
 
     use super::*;
-    
+
     #[test]
     fn solve_examples() {
         for entry in fs::read_dir("puzzles").expect("Failed to read puzzles directory") {
             let entry = entry.expect("Failed to read entry");
-            if entry.path().extension() 
+            if entry
+                .path()
+                .extension()
                 .map(|ext| ext.to_str() != Some("txt"))
-                .unwrap_or(true) {
-                    continue;
-                }
+                .unwrap_or(true)
+            {
+                continue;
+            }
             let Ok(data) = std::fs::read_to_string(&entry.path()) else {
                 panic!("Failed to read file: {}", entry.path().display());
             };
             let Some(sudoku) = Sudoku::parse(&data) else {
-                panic!("Failed to parse sudoku from file: {}", entry.path().display());
+                panic!(
+                    "Failed to parse sudoku from file: {}",
+                    entry.path().display()
+                );
             };
             if sudoku.solve().is_none() {
-                panic!("Failed to solve sudoku from file: {}", entry.path().display());
+                panic!(
+                    "Failed to solve sudoku from file: {}",
+                    entry.path().display()
+                );
             }
         }
     }
