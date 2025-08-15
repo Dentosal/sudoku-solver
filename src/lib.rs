@@ -5,6 +5,8 @@ mod bitset;
 use core::fmt;
 use std::ops;
 
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+
 use crate::bitset::PossibleValues;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -295,10 +297,17 @@ impl SudokuPossibilities {
                 }
 
                 let mut alts = Vec::new();
-                for opt in self.grid[i][j].options() {
-                    let mut copy = self.clone();
-                    copy.grid[i][j] = PossibleValues::from(opt);
-                    match copy.recursive_hypothetical(depth + 1, limit) {
+                for opt in self.grid[i][j]
+                    .options()
+                    .into_par_iter()
+                    .map(|opt| {
+                        let mut copy = self.clone();
+                        copy.grid[i][j] = PossibleValues::from(opt);
+                        copy.recursive_hypothetical(depth + 1, limit)
+                    })
+                    .collect::<Vec<_>>()
+                {
+                    match opt {
                         Ok(solved) => return Ok(solved),
                         Err(CannotSolve::Broken) => {}
                         Err(CannotSolve::DepthLimit(alt)) => alts.push(alt),
