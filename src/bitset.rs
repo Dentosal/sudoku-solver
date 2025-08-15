@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::Number;
+use crate::Digit;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PossibleValues(u16);
@@ -9,7 +9,7 @@ impl PossibleValues {
     pub const EMPTY: Self = Self(0);
     pub const ANY: Self = Self(0b1_1111_1111);
 
-    pub fn initial_state(value: Option<Number>) -> Self {
+    pub fn initial_state(value: Option<Digit>) -> Self {
         if let Some(n) = value {
             Self::from(n)
         } else {
@@ -25,38 +25,43 @@ impl PossibleValues {
         self.0.count_ones() as u8
     }
 
-    pub fn contains(&self, value: Number) -> bool {
+    pub fn contains(&self, value: Digit) -> bool {
         !(*self & Self::from(value)).is_broken()
     }
 
-    pub fn add(&mut self, value: Number) {
+    pub fn add(&mut self, value: Digit) {
         *self |= Self::from(value);
     }
 
-    pub fn remove(&mut self, value: Number) {
+    pub fn remove(&mut self, value: Digit) {
         self.0 &= !(1 << value.index());
     }
 
-    pub fn determined(&self) -> Option<Number> {
+    pub fn determined(&self) -> Option<Digit> {
         if self.count() == 1 {
-            Some(Number(self.0.trailing_zeros() as u8 + 1))
+            Some(
+                Digit::new(self.0.trailing_zeros() as u8 + 1)
+                    .expect("Bitmap did not match a valid digit"),
+            )
         } else {
             None
         }
     }
 
-    pub fn options(&self) -> Vec<Number> {
+    pub fn options(&self) -> Vec<Digit> {
         let mut result = Vec::new();
 
         let mut tmp = self.0;
-        let mut num = Number::MIN;
-        while tmp != 0 {
+        let mut num = Digit::MIN;
+        loop {
             if tmp & 1 != 0 {
                 result.push(num);
             }
-
-            num = Number(num.0 + 1);
-            tmp = tmp >> 1;
+            tmp >>= 1;
+            if tmp == 0 {
+                break;
+            }
+            num = num.next().expect("Digit overflowed");
         }
         result
     }
@@ -87,8 +92,8 @@ impl ops::BitOrAssign for PossibleValues {
     }
 }
 
-impl From<Number> for PossibleValues {
-    fn from(value: Number) -> Self {
+impl From<Digit> for PossibleValues {
+    fn from(value: Digit) -> Self {
         Self(1 << value.index())
     }
 }
@@ -98,10 +103,10 @@ mod tests {
     use super::*;
     #[test]
     fn test_possible_values_num() {
-        let mut pv = PossibleValues::initial_state(Some(Number(5)));
+        let mut pv = PossibleValues::initial_state(Some(Digit::unchecked(5)));
         assert_eq!(pv.count(), 1);
         assert!(!pv.is_broken());
-        pv.remove(Number(5));
+        pv.remove(Digit::unchecked(5));
         assert!(pv.is_broken());
     }
 
@@ -110,16 +115,16 @@ mod tests {
         let mut pv = PossibleValues::initial_state(None);
         assert_eq!(pv.count(), 9);
         assert!(!pv.is_broken());
-        pv.remove(Number(1));
+        pv.remove(Digit::unchecked(1));
         assert_eq!(pv.count(), 8);
         assert!(!pv.is_broken());
     }
 
     #[test]
     fn test_possible_values_bitwise_ops() {
-        let pv1 = PossibleValues::initial_state(Some(Number(1)));
-        let pv2 = PossibleValues::initial_state(Some(Number(2)));
-        let pv3 = PossibleValues::initial_state(Some(Number(3)));
+        let pv1 = PossibleValues::initial_state(Some(Digit::unchecked(1)));
+        let pv2 = PossibleValues::initial_state(Some(Digit::unchecked(2)));
+        let pv3 = PossibleValues::initial_state(Some(Digit::unchecked(3)));
 
         let and_result = pv1 & pv2;
         let or_result = pv1 | pv3;
@@ -129,17 +134,20 @@ mod tests {
         assert!(and_result.is_broken());
         assert!(!or_result.is_broken());
 
-        assert!(pv1.contains(Number(1)));
-        assert!(pv2.contains(Number(2)));
-        assert!(!pv2.contains(Number(1)));
-        assert!(!pv1.contains(Number(2)));
+        assert!(pv1.contains(Digit::unchecked(1)));
+        assert!(pv2.contains(Digit::unchecked(2)));
+        assert!(!pv2.contains(Digit::unchecked(1)));
+        assert!(!pv1.contains(Digit::unchecked(2)));
 
-        assert_eq!(pv1.options(), vec![Number(1)]);
-        assert_eq!(pv2.options(), vec![Number(2)]);
-        assert_eq!((pv1 | pv2).options(), vec![Number(1), Number(2)]);
+        assert_eq!(pv1.options(), vec![Digit::unchecked(1)]);
+        assert_eq!(pv2.options(), vec![Digit::unchecked(2)]);
+        assert_eq!(
+            (pv1 | pv2).options(),
+            vec![Digit::unchecked(1), Digit::unchecked(2)]
+        );
 
-        assert_eq!(pv1.determined(), Some(Number(1)));
-        assert_eq!(pv2.determined(), Some(Number(2)));
+        assert_eq!(pv1.determined(), Some(Digit::unchecked(1)));
+        assert_eq!(pv2.determined(), Some(Digit::unchecked(2)));
         assert_eq!((pv1 | pv2).determined(), None);
     }
 }

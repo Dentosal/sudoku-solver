@@ -7,7 +7,8 @@ fn main() -> Result<(), &'static str> {
         return Err("usage: solve puzzle.txt");
     };
     let data = std::fs::read_to_string(&path).expect("Failed to read input file");
-    if let Some(solved) = Sudoku::parse(&data).solve() {
+    let sudoku = Sudoku::parse(&data).ok_or("Invalid sudoku input")?;
+    if let Some(solved) = sudoku.solve() {
         print!("{solved}");
         Ok(())
     } else {
